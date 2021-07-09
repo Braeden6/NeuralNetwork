@@ -3,6 +3,7 @@ import numpy as np
 from DQNAgent import DQNAgent
 import tensorflow
 import time
+import sys
 
 WHITE = (255,255,255)
 SIZE = 150
@@ -97,7 +98,7 @@ class TICTACTOE:
     def playagainstNN(self):
         playersTurn = False
         agent = DQNAgent((9,), 9, 0.99, 200, 0, 0)
-        agent.load("C:/Users/bnorm/OneDrive - SysEne Consulting Inc/Personal/Program/GameAI/save/agent2.hz")
+        agent.load("C:/Users/bnorm/OneDrive - SysEne Consulting Inc/Personal/Program/GameAI/save1/agent1.hz")
         pygame.init()
         # Run until the user asks to quit
         running = True
@@ -113,7 +114,6 @@ class TICTACTOE:
                 if event.type == pygame.QUIT:
                     running = False
                 if self.won != 0 and event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                    print(self.won)
                     self.__init__(True)
                 if event.type == pygame.MOUSEBUTTONDOWN and self.won == 0:
                     (x,y) = pygame.mouse.get_pos()
@@ -132,18 +132,9 @@ class TICTACTOE:
         # Done! Time to quit.
         pygame.quit()
 
-
-
 def getPossibleMove(agent, agentNum, board):
-    foundResult = False
-    while(not foundResult):
-        action = agent.act(np.reshape(board, [1,9]))
-        if board[action] == 0:
-            foundResult = True
-        else:
-            agent.memorize(board, action, -5, board, 0)
-    return action
-
+    action = agent.act_percentages(np.reshape(board, [1,9]))
+    return np.argmax([a if 0 == b else 0 for b,a in zip(board, action)])
 
 def trainTwoNN():
     game = TICTACTOE(False)
@@ -153,9 +144,9 @@ def trainTwoNN():
     NUM_OF_GAMES = 25
     # game.playGame()
     
-    agent1 = DQNAgent((9,), 9, 0.99, 200, 1, 0.01)
-    agent2 = DQNAgent((9,), 9, 0.99, 200, 1, 0.01)
-    for gameNum in range(1,1000):
+    agent1 = DQNAgent((9,), 9, 0.995, 128, 1, 0.01)
+    agent2 = DQNAgent((9,), 9, 0.995, 128, 1, 0.01)
+    for gameNum in range(1,10000):
         # play a game
         board = [0 for _ in range(9)]
         # print('Game number: ', gameNum)
@@ -166,10 +157,10 @@ def trainTwoNN():
             # Novice: 1 wins 57.1% 2 wins 30.6% and Ties 12.3%
             # Intermidiate: 1 wins 90.4% 2 wins 1.6% and Ties 8%
             # Expert: 1 wins 90.8% 2 wins 0.7% and Ties 8.5%
-            print('Total games: {} Epsilon: {:.2f} In the last {} games TIES: {:.2f} Agent1 wins: {:.2f} Agent 2 wins: {:.2f}'.format(gameNum, agent1.epsilon, NUM_OF_GAMES, TIES/(NUM_OF_GAMES), AGENT1WINS/(NUM_OF_GAMES), AGENT2WINS/(NUM_OF_GAMES)))
-            TIES = 0
-            AGENT1WINS = 0
-            AGENT2WINS = 0
+            print('Total games: {} Epsilon: {:.2f} TIES: {:.2f} Agent1 wins: {:.2f} Agent 2 wins: {:.2f}'.format(gameNum, agent1.epsilon, TIES/gameNum, AGENT1WINS/gameNum, AGENT2WINS/gameNum))
+            # TIES = 0
+            # AGENT1WINS = 0
+            # AGENT2WINS = 0
 
         # reset for new board
         action1 = -1
@@ -196,7 +187,7 @@ def trainTwoNN():
                 elif gameResult == 1:
                     # -10 reward for agent2 if agent1 wins
                     agent1.memorize(beforeAgent1Board, action1, 10, board, gameResult != 0)
-                    agent2.memorize(beforeAgent2Board, action2, 0, board, gameResult != 0)#-10, board, gameResult != 0)
+                    agent2.memorize(beforeAgent2Board, action2, -10, board, gameResult != 0)#-10, board, gameResult != 0)
                     AGENT1WINS += 1
                 break
             else:
@@ -224,7 +215,7 @@ def trainTwoNN():
                     TIES += 1
                 elif gameResult == 2:
                     # -10 reward for agent1 if agent2 wins
-                    agent1.memorize(beforeAgent1Board, action1, 0, board, gameResult != 0)#-10, board, gameResult != 0)
+                    agent1.memorize(beforeAgent1Board, action1, -10, board, gameResult != 0)
                     agent2.memorize(beforeAgent2Board, action2, 10, board, gameResult != 0)
                     AGENT2WINS += 1
                 break
@@ -238,8 +229,8 @@ def trainTwoNN():
         agent1.decayEpsilon()
         agent2.decayEpsilon()
 
-    agent1.save("C:/Users/bnorm/OneDrive - SysEne Consulting Inc/Personal/Program/GameAI/save/agent1_2.hz")
-    agent2.save("C:/Users/bnorm/OneDrive - SysEne Consulting Inc/Personal/Program/GameAI/save/agent2_2.hz")
+    agent1.save("C:/Users/bnorm/OneDrive - SysEne Consulting Inc/Personal/Program/GameAI/save1/agent1.hz")
+    agent2.save("C:/Users/bnorm/OneDrive - SysEne Consulting Inc/Personal/Program/GameAI/save1/agent2.hz")
 
 
 def runGame():
@@ -247,5 +238,6 @@ def runGame():
     game.playagainstNN()
 
 if __name__ == "__main__":
+    #trainTwoNN()
     runGame()
-    
+
