@@ -1,0 +1,2 @@
+model_checkpoint_path: "agent2.hz"
+all_model_checkpoint_paths: "agent2.hz"
