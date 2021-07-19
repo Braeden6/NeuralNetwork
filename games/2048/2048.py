@@ -2,13 +2,18 @@ import pygame
 import numpy as np
 import random
 import time
+import sys
+import pickle
+import matplotlib.pyplot as plt
+sys.path.append("../../")
+from DQNAgent import DQNAgent
 
 pygame.init()
 BOARD_COLOUR = (255,255,255)
 BACKGROUND = (0,0,0)
 WIDTH = 500
 HEIGHT = 500
-SCOREBOARD_HEIGHT = 100
+SCOREBOARD_HEIGHT = 60
 FONT = pygame.font.SysFont("Courier New", 38)
 BOARD_SIZE = 4
 SCORE = 0
@@ -85,6 +90,10 @@ def move(board):
     shift(board)
     if not np.array_equal(boardCopy, board):
         newRandomTile(board)
+        '''
+        print("movement")
+    else:
+        print("no movement")'''
     return isOver(board)
 
 def newRandomTile(board):
@@ -109,41 +118,112 @@ def isOver(board):
                 return False
     return True
 
-def play2048():
+def moveDown(board):
+    board = np.flip(board, axis=1)
+    gameOver = move(board)
+    board = np.flip(board, axis=1)
+    return gameOver
+
+def moveLeft(board):
+    board = np.transpose(board)
+    gameOver = move(board)
+    board = np.transpose(board)
+    return gameOver
+
+def moveRight(board):
+    board = np.transpose(board)
+    board = np.flip(board, axis=1)
+    gameOver = move(board)
+    board = np.flip(board, axis=1)
+    board = np.transpose(board)
+    return gameOver
+
+def init_game():
     global gameOver
-    screen = pygame.display.set_mode([WIDTH,HEIGHT + SCOREBOARD_HEIGHT])
+    global SCORE
+    SCORE = 0
     board = np.zeros((4,4))
     newRandomTile(board)
     newRandomTile(board)
-    running = True
     gameOver = False
+    return board
+
+def play2048():
+    global gameOver
+    screen = pygame.display.set_mode([WIDTH,HEIGHT + SCOREBOARD_HEIGHT])
+    board = init_game()
+    running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                board = np.zeros((4,4))
-                newRandomTile(board)
-                newRandomTile(board)
-                gameOver = False
+                board = init_game()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_UP and not gameOver:
                 gameOver = move(board)
             if event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN and not gameOver:
-                board = np.flip(board, axis=1)
-                gameOver = move(board)
-                board = np.flip(board, axis=1)
+                gameOver = moveDown(board)
             if event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT and not gameOver:
-                board = np.transpose(board)
-                gameOver = move(board)
-                board = np.transpose(board)
+                gameOver = moveLeft(board)
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT and not gameOver:
-                board = np.transpose(board)
-                board = np.flip(board, axis=1)
-                gameOver = move(board)
-                board = np.flip(board, axis=1)
-                board = np.transpose(board)
+                gameOver = moveRight(board)
         drawBoard(screen, board)
         pygame.display.update()
 
+def trainDQN(agent, scores):
+    global gameOver
+    plt.axis([0,1000,0,10000])
+    plt.ion()
+    plt.show()
+    board = init_game()
+    for gameNum in range(1000):
+        board = init_game()
+        moves = 0
+        while not gameOver:
+            prev_score = SCORE
+            prev_board = np.copy(board)
+            action = agent.act(np.reshape(board, [1,16]))
+
+            if action == 0:
+                gameOver = move(board)
+            elif action == 1:
+                gameOver = moveDown(board)
+            elif action == 2:
+                gameOver = moveLeft(board)
+            elif action == 3:
+                gameOver = moveRight(board)
+
+            agent.memorize(np.reshape(prev_board, (16,)), action, SCORE - prev_score, np.reshape(board, (16,)), gameOver)
+            moves += 1
+            if moves % 50 == 0 or gameOver:
+                agent.train(gameOver)
+        print("Game Number:", gameNum, "Score:", SCORE, "Epsilon:", agent.epsilon, "Moves:", moves)
+        scores.append(SCORE)
+        plt.plot(scores)
+        plt.draw()
+        plt.pause(0.0001)
+        agent.decayEpsilon()
+        if gameNum % 10 == 0:
+            print("saving", len(agent.memory))
+            agent.save("saved/save/agent.hz")
+            gamefile = open("saved/save/games.pkl","wb")
+            pickle.dump([agent.memory, scores], gamefile, protocol=pickle.HIGHEST_PROTOCOL)
+            gamefile.close()
+    # final save
+    agent.save("saved/save/agent.hz")
+    gamefile = open("saved/save/games.pkl","wb")
+    pickle.dump([agent.memory, scores], gamefile, protocol=pickle.HIGHEST_PROTOCOL)
+    gamefile.close()
+
+
+
 if __name__ == "__main__":
-    play2048()
+    agent = DQNAgent((16,), 4, 0.99, 512, 0.6, 0.01)
+    agent.load("saved/save/agent.hz")
+
+    gamefile = open("saved/save/games.pkl","rb")
+    [agent.memory, scores] = pickle.load(gamefile)
+    gamefile.close()
+
+    trainDQN(agent, scores)
+    #play2048()
