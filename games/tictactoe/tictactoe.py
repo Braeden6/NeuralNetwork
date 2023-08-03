@@ -1,10 +1,13 @@
 import pygame, time
 import numpy as np
-from DQNAgent import DQNAgent
 import tensorflow
 import time
 import sys
 import pickle
+import random
+sys.path.append("..//..//")
+from DQNAgent import DQNAgent
+
 
 WHITE = (255,255,255)
 SIZE = 150
@@ -136,6 +139,12 @@ def getPossibleMove(agent, agentNum, board):
     action = agent.act_percentages(np.reshape(board, [1,9]))
     return np.argmax([a if 0 == b else 0 for b,a in zip(board, action)])
 
+def getPossibleRandomMove(board):
+    while(True):
+        action = random.randrange(len(board))
+        if board[action] == 0:
+            return action
+
 def trainTwoNN(agent1, agent2):
     game = TICTACTOE(False)
     TIES = 0
@@ -238,18 +247,98 @@ def trainTwoNN(agent1, agent2):
     agent2.save("saved/save5/agent2.hz")
 
 
+def trainAgaisntRandom(agent):
+    game = TICTACTOE(False)
+    TIES = 0
+    AGENT1WINS = 0
+    AGENT2WINS = 0
+    NUM_OF_GAMES = 25
+    
+    for gameNum in range(1,20000):
+        # play a game
+        board = [0 for _ in range(9)]
+        # reset for new board
+        action1 = -1
+        done = False
+
+        if gameNum % NUM_OF_GAMES == 0:
+            # Novice: 1 wins 57.1% 2 wins 30.6% and Ties 12.3%
+            # Intermidiate: 1 wins 90.4% 2 wins 1.6% and Ties 8%
+            # Expert: 1 wins 90.8% 2 wins 0.7% and Ties 8.5%
+            print('Total games: {} Epsilon: {:.2f} TIES: {:.2f} Agent1 wins: {:.2f} Agent 2 wins: {:.2f}'.format(gameNum, agent.epsilon, TIES/gameNum, AGENT1WINS/gameNum, AGENT2WINS/gameNum))
+
+        while(not done):
+            # agent 1 takes an action
+            action1 = getPossibleMove(agent, 1, board)
+
+            # update game board
+            beforeAgent1Board = board
+            board[action1] = 1
+
+            # check for win
+            gameResult = game.detectGameDone(np.resize(board,(3,3)))
+            #print(board, gameResult)
+
+            # end game if over
+            if gameResult != 0:
+                if gameResult == -1:
+                    # -5 reward if a tie
+                    agent.memorize(beforeAgent1Board, action1, 0, board, gameResult != 0)
+                    TIES += 1
+                elif gameResult == 1:
+                    # -10 reward for agent2 if agent1 wins
+                    agent.memorize(beforeAgent1Board, action1, 10, board, gameResult != 0)
+                    AGENT1WINS += 1
+                done = True
+                break
+
+            # agent 2 takes an action
+            board[getPossibleRandomMove(board)] = 2
+
+            # check for win
+            gameResult = game.detectGameDone(np.resize(board,(3,3)))
+            # print(board, gameResult)
+
+            # end game if over
+            if gameResult != 0:
+                if gameResult == -1:
+                    # -5 reward if a tie
+                    agent.memorize(beforeAgent1Board, action1, 0, board, gameResult != 0)
+                    TIES += 1
+                elif gameResult == 2:
+                    # -10 reward for agent1 if agent2 wins
+                    agent.memorize(beforeAgent1Board, action1, -10, board, gameResult != 0)
+                    AGENT2WINS += 1
+                done = True
+                break
+            else:
+                # agent1 goes first so we always save
+                agent.memorize(beforeAgent1Board, action1, 0, board, gameResult != 0)
+
+
+        agent.train(0)
+        agent.decayEpsilon()
+        if gameNum % 1000 == 0:
+            agent.save("saved/save6/agent.hz")
+            file1 = open("saved/save6/games.pkl","wb")
+            pickle.dump(agent.memory, file1)
+            file1.close()
+
+    agent.save("saved/save6/agent.hz")
+
+
 def runGame():
     game = TICTACTOE(True)
     game.playagainstNN()
 
 if __name__ == "__main__":
-
-    agent1 = DQNAgent((9,), 9, 0.999, 128, 1, 0.01)
-    agent2 = DQNAgent((9,), 9, 0.999, 128, 1, 0.01)
+    agent = DQNAgent((9,), 9, 0.999, 128, 1, 0.01)
+    #agent2 = DQNAgent((9,), 9, 0.999, 128, 1, 0.01)
     #agent1.load("saved/save3/agent1.hz")
     #agent2.load("saved/save3/agent2.hz")
 
     #trainTwoNN(agent1, agent2)
+    trainAgaisntRandom(agent)
 
-    runGame()
+    #runGame()
 

@@ -72,11 +72,8 @@ class DQNAgent:
                 learned_value = reward + discount_factor * optimal_future_value
             else:
                 learned_value = reward
-
-            # Q(s_t, a_t)
             old_value = old_values[index]
             new_value = old_value
-            # Q^new(s_t, a_t)
             new_value[action] = (1 - learning_rate) * old_value[action] + learning_rate * learned_value
 
             X.append(state)
@@ -93,3 +90,43 @@ class DQNAgent:
 
     def save(self, name):
         self.model.save_weights(name)
+
+
+    '''
+    def train(self, learning_rate, discount_factor):
+        # subset of memorized data
+        mini_batch = random.sample(self.memory, self.batch_size)
+        # list of states (s)
+        current_states = np.array([transition[0] for transition in mini_batch])
+        old_values = self.model.predict(current_states)
+        # list of updated states (s')
+        next_state = np.array([transition[3] for transition in mini_batch])
+        future_values = self.model.predict(next_state)
+
+        X = []
+        Y = []
+        for index, (state, action, reward) in enumerate(mini_batch):
+            # Q(s_t, a_t)
+            new_value = old_values[index]
+            learned_value = reward + discount_factor * max(future_values[index])
+            # Q^new(s_t, a_t)
+            new_value[action] = (1 - learning_rate) * old_values[index][action] + learning_rate * learned_value
+            X.append(state)
+            Y.append(new_value)
+        self.model.fit(X, Y)'''
+        
+'''
+def rand():
+    return 
+def randint():
+    return
+def argmax():
+    return
+
+def act(self, observation):
+    if rand() <= self.epsilon:
+        return randint(self.action_size)
+    return argmax(self.model.predict(observation)) '''
+    
+
+
